@@ -95,9 +95,10 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
                 newName="{0}-{1}-{2}s-{3}x{4}-g{5}-o{6}-t{7}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])
             # If we can add the file to the database move it to the repo
             if (submitFile(repoFolder+newName.replace(" ", ""),hdr)):
-                #shutil.move(os.path.join(root, file),newName)
-                moveInfo="Moving {0} to {1}\n".format(os.path.join(root, file),newName)
-                print(moveInfo)
+                shutil.move(os.path.join(root, file),repoFolder+newName)
+                moveInfo="Moving {0} to {1}\n".format(os.path.join(root, file),repoFolder+newName)
+                if DEBUG:
+                    print(moveInfo)
             else:
                 logging.warning("Warning: File not added to repo is "+str(os.path.join(root, file)))
                         
