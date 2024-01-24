@@ -57,14 +57,15 @@ def createTables():
     cur.execute("CREATE TABLE if not exists fitsHeader(thisUNID, parentUNID, keyword, value)")
     return
 
-# Set up Database
-con = sqlite3.connect("obsy.db")
-cur = con.cursor()
-createTables()
-
 # Variable Declarations
 picturesFolder="/home/gtulloch/Dropbox/Astronomy/00 Telescope Data/SPAO/"
-repoFolder="/home/gtulloch/Repository/"
+repoFolder="/home/gtulloch/Dropbox/Astronomy/00 Data Repository/"
+dbName = "/home/gtulloch/Dropbox/Astronomy/00 Data Repository/obsy.db"
+
+# Set up Database
+con = sqlite3.connect(dbName)
+cur = con.cursor()
+createTables()
 
 # Set up logging
 logging.basicConfig(filename='postProcess.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
