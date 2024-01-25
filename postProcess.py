@@ -98,13 +98,13 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
             # If we can add the file to the database move it to the repo
             if DEBUG:
                 print(newName)
-            '''if (submitFile(repoFolder+newName.replace(" ", ""),hdr)):
+            if (submitFile(repoFolder+newName.replace(" ", ""),hdr)):
                 shutil.move(os.path.join(root, file),repoFolder+newName)
                 moveInfo="Moving {0} to {1}\n".format(os.path.join(root, file),repoFolder+newName)
                 if DEBUG:
                     print(moveInfo)
             else:
-                logging.warning("Warning: File not added to repo is "+str(os.path.join(root, file)))'''
+                logging.warning("Warning: File not added to repo is "+str(os.path.join(root, file)))
         else:
             logging.warning("File not added to repo - no FRAME card - "+str(os.path.join(root, file)))
             
