@@ -58,7 +58,7 @@ def createTables():
     return
 
 # Variable Declarations
-picturesFolder="/home/gtulloch/Dropbox/Astronomy/00 Telescope Data/SPAO/"
+picturesFolder="/home/gtulloch/Dropbox/Astronomy/00 Telescope Data"
 repoFolder="/home/gtulloch/Dropbox/Astronomy/00 Data Repository/"
 dbName = "/home/gtulloch/Dropbox/Astronomy/00 Data Repository/obsy.db"
 
@@ -80,7 +80,7 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
         hdul = fits.open(os.path.join(root, file))
         hdr = hdul[0].header
         if "FRAME" in hdr:
-            #print(os.path.join(root, file))
+            print(os.path.join(root, file))
             if (hdr["FRAME"]=="Light"):
                 if ("OBJECT" in hdr):
                     newName="{0}-{1}-{2}-e{3}s-b{4}x{5}-g{6}-o{7}-t{8}.fits".format(hdr["DATE-OBS"],hdr["OBJECT"],hdr["FILTER"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])
@@ -93,12 +93,14 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
                 newName="{0}-{1}-{2}s-{3}x{4}-g{5}-o{6}-t{7}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])
             elif hdr["FRAME"]=="Bias":
                 newName="{0}-{1}-{2}s-{3}x{4}-g{5}-o{6}-t{7}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])
+            else:
+                logging.warning("Warning: File not processed as FRAME not recognized: "+str(os.path.join(root, file)))
             # If we can add the file to the database move it to the repo
-            if (submitFile(repoFolder+newName.replace(" ", ""),hdr)):
+            '''if (submitFile(repoFolder+newName.replace(" ", ""),hdr)):
                 shutil.move(os.path.join(root, file),repoFolder+newName)
                 moveInfo="Moving {0} to {1}\n".format(os.path.join(root, file),repoFolder+newName)
                 if DEBUG:
                     print(moveInfo)
             else:
-                logging.warning("Warning: File not added to repo is "+str(os.path.join(root, file)))
+                logging.warning("Warning: File not added to repo is "+str(os.path.join(root, file)))'''
                         
