@@ -80,7 +80,7 @@ def submitToLiveStack(fitsName,hdr):
     liveStackName=stackFolder+"{0}-LiveStack.png".format(hdr["OBJECT"])
 
     # Has a livestack already been started?
-    if (os.path.isfile(liveStackName+".fits")):
+    if (os.path.isfile(liveStackName)):
         # Move the new image into the working folder
         shutil.copy(fitsName, workingFolder+"Light/Main_002.fits")      
         # Stack this image with the current liveStack
@@ -97,17 +97,18 @@ def submitToLiveStack(fitsName,hdr):
     else:
         # New livestack, put the first image in the working folder
         shutil.copy(fitsName, workingFolder+"Light/Main_001.fits")
+        # Move any existing livestacks to a Previous folder
+        os.system("mv {0}*.png {0}Previous".format(stackFolder))
         # Create a PNG file of the first image
-        exeStr="convert -flatten {0} {1}".format(fitsName,livestackName)
-        os.system(exeStr)
+        os.system("convert -flatten {0} {1}".format(fitsName,livestackName))
     return True
 
 # Variable Declarations
-picturesFolder="/home/gtulloch/Dropbox/Astronomy/00 Telescope Data"
-repoFolder="/home/gtulloch/Dropbox/Astronomy/00 Data Repository/"
-dbName = "/home/gtulloch/Dropbox/Astronomy/00 Data Repository/obsy.db"
-stackFolder="/var/www/html/"
-workingFolder="/home/gtulloch/Dropbox/Astronomy/00 Siril Work/"
+picturesFolder="/home/gtulloch/AstroPictures/"
+repoFolder="/home/gtulloch/AstroRepository/"
+dbName = "/home/gtulloch/AstroRepository/obsy.db"
+stackFolder="/var/www/html/LiveStack/"
+workingFolder="/home/gtulloch/SirilWork/"
 
 # Set up Database
 con = sqlite3.connect(dbName)
