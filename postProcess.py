@@ -58,7 +58,7 @@ def createTables():
     return
 
 # Variable Declarations
-picturesFolder="/home/gtulloch/Dropbox/Astronomy/00 Telescope Data"
+picturesFolder="/home/gtulloch/Dropbox/Astronomy/00 Telescope Data/T24"
 repoFolder="/home/gtulloch/Dropbox/Astronomy/00 Data Repository/"
 dbName = "/home/gtulloch/Dropbox/Astronomy/00 Data Repository/obsy.db"
 
@@ -74,9 +74,9 @@ logging.basicConfig(filename='postProcess.log', filemode='w', format='%(name)s -
 for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
     for file in files:
         file_name, file_extension = os.path.splitext(os.path.join(root, file))
-        if file_extension !=".fits":
-            continue
-        #print(os.path.join(root, file))
+        #if (file_extension !=".fits") or (file_extension !=".fit"):
+        #    continue
+        print(os.path.join(root, file))
         hdul = fits.open(os.path.join(root, file))
         hdr = hdul[0].header
         if "FRAME" in hdr:
@@ -85,7 +85,7 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
                 if ("OBJECT" in hdr):
                     newName="{0}-{1}-{2}-e{3}s-b{4}x{5}-g{6}-o{7}-t{8}.fits".format(hdr["DATE-OBS"],hdr["OBJECT"],hdr["FILTER"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])
                 else:
-                    logging.warning("Warning: Invalid object name in header. File not processed is "+str(os.path.join(root, file)))
+                    logging.warning("Invalid object name in header. File not processed is "+str(os.path.join(root, file)))
                     continue
             elif hdr["FRAME"]=="Dark":
                 newName="{0}-{1}-{2}s-{3}x{4}-g{5}-o{6}-t{7}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])              
@@ -94,8 +94,10 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
             elif hdr["FRAME"]=="Bias":
                 newName="{0}-{1}-{2}s-{3}x{4}-g{5}-o{6}-t{7}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])
             else:
-                logging.warning("Warning: File not processed as FRAME not recognized: "+str(os.path.join(root, file)))
+                logging.warning("File not processed as FRAME not recognized: "+str(os.path.join(root, file)))
             # If we can add the file to the database move it to the repo
+            if DEBUG:
+                print(newName)
             '''if (submitFile(repoFolder+newName.replace(" ", ""),hdr)):
                 shutil.move(os.path.join(root, file),repoFolder+newName)
                 moveInfo="Moving {0} to {1}\n".format(os.path.join(root, file),repoFolder+newName)
@@ -103,4 +105,6 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
                     print(moveInfo)
             else:
                 logging.warning("Warning: File not added to repo is "+str(os.path.join(root, file)))'''
-                        
+        else:
+            logging.warning("File not added to repo - no FRAME card - "+str(os.path.join(root, file)))
+            
