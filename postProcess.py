@@ -18,6 +18,7 @@ import logging
 import sqlite3
 import shutil
 import uuid
+from pathlib import Path
 
 DEBUG=True
 
@@ -71,15 +72,32 @@ def createTables():
     return
 
 def submitToLiveStack(fitsName,hdr):
-    # What is the livestack called?
-    liveStackName=stackFolder+"{0}-LiveStack.jpg".format(hdr["OBJECT"])
+    # Create working directories if not exist
+    Path(workingFolder).mkdir(parents=True, exist_ok=True)
+    Path(workingFolder+"Light").mkdir(parents=True, exist_ok=True)
+
+    # What is the livestack called? If first or we've changed object create a new one
+    liveStackName=stackFolder+"{0}-LiveStack.png".format(hdr["OBJECT"])
+
     # Has a livestack already been started?
-    if (os.path.isfile(liveStackName))
+    if (os.path.isfile(liveStackName+".fits")):
+        # Move the new image into the working folder
+        shutil.copy(fitsName, workingFolder+"Light/Main_002.fits")      
         # Stack this image with the current liveStack
         exeStr="/usr/bin/siril-cli -s live.ssf -d {0}/Light".format(workingFolder)
         os.system(exeStr)
+        # Remove working files
+        os.system("rm {0}/Light/Main_001.fits".format(workingFolder))
+        os.system("rm {0}/Light/Main_002.fits".format(workingFolder))
+        os.system("rm {0}/Light/*.seq".format(workingFolder))
+        os.system("mv {0}/Light/Main_stacked.fits {0}/Light/Main_001.fits".format(workingFolder))
+        os.system("rm {0}/Light/r_Main*.fits".format(workingFolder))
+        # Move PNG to web server
+        os.system("mv {0}/Light/Main.png {1}/{2}".format(workingFolder,liveStackName))
     else:
-        # New livestack, just create a JPG file of the first image
+        # New livestack, put the first image in the working folder
+        shutil.copy(fitsName, workingFolder+"Light/Main_001.fits")
+        # Create a PNG file of the first image
         exeStr="convert -flatten {0} {1}".format(fitsName,livestackName)
         os.system(exeStr)
     return True
