@@ -79,17 +79,21 @@ def submitToLiveStack(fitsName,hdr):
     liveStackName=stackFolder+"{0}-LiveStack.png".format(hdr["OBJECT"])
 
     # Set up pySiril
-    app=Siril()       
-    workdir=workingFolder
-    app.Execute("set16bits")
-    app.Execute("setext fits")
+    app=Siril()
+    cmd=Wrapper(app)
+    cmd.set16bits()
+    cmd.setext('fits')
     
     # Has a livestack already been started?
     if (os.path.isfile(liveStackName)):
         # Move the new image into the working folder
         shutil.copy(fitsName, workingFolder+"Light/Main_002.fits")      
         # Stack this image with the current liveStack
-        app.Execute("stack Main_ sum -nonorm")
+        try:
+            cmd.cd(workingFolder+"/Light")
+            cmd.stack("Main_",type='sum',output_norm=False)
+        except Exception as e :
+            print("\n**** ERROR *** " +  str(e) + "\n" )  
         # Remove working files
         os.system("rm {0}Light/Main_001.fits".format(workingFolder))
         os.system("rm {0}Light/Main_002.fits".format(workingFolder))
