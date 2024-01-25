@@ -58,7 +58,7 @@ def createTables():
     return
 
 # Variable Declarations
-picturesFolder="/home/gtulloch/Dropbox/Astronomy/00 Telescope Data/T24"
+picturesFolder="/home/gtulloch/Dropbox/Astronomy/00 Telescope Data"
 repoFolder="/home/gtulloch/Dropbox/Astronomy/00 Data Repository/"
 dbName = "/home/gtulloch/Dropbox/Astronomy/00 Data Repository/obsy.db"
 
