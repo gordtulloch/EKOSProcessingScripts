@@ -19,6 +19,8 @@ import sqlite3
 import shutil
 import uuid
 from pathlib import Path
+from pysiril.siril   import *
+from pysiril.wrapper import *
 
 DEBUG=True
 
@@ -27,8 +29,7 @@ def submitFile(fileName, hdr):
     if "DATE-OBS" in hdr:
         uuidStr=uuid.uuid4()
         sqlStmt="INSERT INTO fitsFile (unid, date, filename) VALUES ('{0}','{1}','{2}')".format(uuidStr,hdr["DATE-OBS"],fileName)
-        if DEBUG:
-            print(sqlStmt)
+
         try:
             cur.execute(sqlStmt)
             con.commit()
@@ -40,14 +41,12 @@ def submitFile(fileName, hdr):
             logging.error(traceback.format_exception(exc_type, exc_value, exc_tb))
             
         for card in hdr:
-            print(type(hdr[card]))
             if type(hdr[card]) not in [bool,int,float]:
                 keywordValue=str(hdr[card]).replace('\'',' ')
             else:
                 keywordValue = hdr[card]
             sqlStmt="INSERT INTO fitsHeader (thisUNID, parentUNID, keyword, value) VALUES ('{0}','{1}','{2}','{3}')".format(uuid.uuid4(),uuidStr,card,keywordValue)
-            if DEBUG:
-                print(sqlStmt)
+
             try:
                 cur.execute(sqlStmt)
                 con.commit()
@@ -79,28 +78,37 @@ def submitToLiveStack(fitsName,hdr):
     # What is the livestack called? If first or we've changed object create a new one
     liveStackName=stackFolder+"{0}-LiveStack.png".format(hdr["OBJECT"])
 
+    # Set up pySiril
+    app=Siril()       
+    workdir=workingFolder
+    app.Execute("set16bits")
+    app.Execute("setext fits")
+    
     # Has a livestack already been started?
     if (os.path.isfile(liveStackName)):
         # Move the new image into the working folder
         shutil.copy(fitsName, workingFolder+"Light/Main_002.fits")      
         # Stack this image with the current liveStack
-        exeStr="/usr/bin/siril-cli -s live.ssf -d {0}/Light".format(workingFolder)
-        os.system(exeStr)
+        app.Execute("stack Main_ sum -nonorm")
         # Remove working files
-        os.system("rm {0}/Light/Main_001.fits".format(workingFolder))
-        os.system("rm {0}/Light/Main_002.fits".format(workingFolder))
-        os.system("rm {0}/Light/*.seq".format(workingFolder))
-        os.system("mv {0}/Light/Main_stacked.fits {0}/Light/Main_001.fits".format(workingFolder))
-        os.system("rm {0}/Light/r_Main*.fits".format(workingFolder))
+        os.system("rm {0}Light/Main_001.fits".format(workingFolder))
+        os.system("rm {0}Light/Main_002.fits".format(workingFolder))
+        os.system("rm {0}Light/*.seq".format(workingFolder))
+        os.system("mv {0}Light/Main_stacked.fits {0}Light/Main_001.fits".format(workingFolder))
+        os.system("rm {0}Light/r_Main*.fits".format(workingFolder))
         # Move PNG to web server
-        os.system("mv {0}/Light/Main.png {1}/{2}".format(workingFolder,liveStackName))
+        os.system("/usr/bin/convert -flatten {0}Light/Main_stacked.fits {1}".format(workingFolder,liveStackName))
     else:
         # New livestack, put the first image in the working folder
         shutil.copy(fitsName, workingFolder+"Light/Main_001.fits")
         # Move any existing livestacks to a Previous folder
         os.system("mv {0}*.png {0}Previous".format(stackFolder))
         # Create a PNG file of the first image
-        os.system("convert -flatten {0} {1}".format(fitsName,livestackName))
+        print("Converting {0} to {1}\n".format(fitsName,liveStackName))
+        os.system("/usr/bin/convert -flatten {0} {1}".format(fitsName,liveStackName))
+        
+    app.Close()
+    del app
     return True
 
 # Variable Declarations
@@ -131,26 +139,23 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
             print(os.path.join(root, file))
             if (hdr["FRAME"]=="Light"):
                 if ("OBJECT" in hdr):
-                    newName="{0}-{1}-{2}-e{3}s-b{4}x{5}-g{6}-o{7}-t{8}.fits".format(hdr["DATE-OBS"],hdr["OBJECT"],hdr["FILTER"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])
+                    newName="{0}-{1}-{2}-e{3}s-b{4}x{5}-t{6}.fits".format(hdr["DATE-OBS"],hdr["OBJECT"],hdr["FILTER"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["CCD-TEMP"])
                 else:
                     logging.warning("Invalid object name in header. File not processed is "+str(os.path.join(root, file)))
                     continue
             elif hdr["FRAME"]=="Dark":
-                newName="{0}-{1}-{2}s-{3}x{4}-g{5}-o{6}-t{7}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])              
+                newName="{0}-{1}-{2}s-{3}x{4}-t{5}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["CCD-TEMP"])              
             elif hdr["FRAME"]=="Flat":
-                newName="{0}-{1}-{2}s-{3}x{4}-g{5}-o{6}-t{7}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])
+                newName="{0}-{1}-{2}s-{3}x{4}-t{5}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["CCD-TEMP"])
             elif hdr["FRAME"]=="Bias":
-                newName="{0}-{1}-{2}s-{3}x{4}-g{5}-o{6}-t{7}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["GAIN"],hdr["OFFSET"],hdr["CCD-TEMP"])
+                newName="{0}-{1}-{2}s-{3}x{4}-t{5}".format(hdr["DATE-OBS"],hdr["FRAME"],hdr["EXPTIME"],hdr["XBINNING"],hdr["YBINNING"],hdr["CCD-TEMP"])
             else:
                 logging.warning("File not processed as FRAME not recognized: "+str(os.path.join(root, file)))
+                
             # If we can add the file to the database move it to the repo
-            if DEBUG:
-                print(newName)
             if (submitFile(repoFolder+newName.replace(" ", ""),hdr)):
                 shutil.move(os.path.join(root, file),repoFolder+newName)
                 moveInfo="Moving {0} to {1}\n".format(os.path.join(root, file),repoFolder+newName)
-                if DEBUG:
-                    print(moveInfo)
             else:
                 logging.warning("Warning: File not added to repo is "+str(os.path.join(root, file)))
             if not (submitToLiveStack(repoFolder+newName,hdr)):
