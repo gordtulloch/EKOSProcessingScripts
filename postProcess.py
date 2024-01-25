@@ -1,4 +1,17 @@
-# Script to call after single image to calibrate and name it properly
+############################################################################################################
+#
+# Name        : postProcess.py
+# Purpose     : Script to call after an image is taken to give it a standard name, add it to an index 
+#               database, and move it to a repository
+# Author      : Gord Tulloch
+# Date        : January 25 2024
+# License     : GPL v3
+# Dependencies: Imagemagick and SIRIL needs to be install for live stacking
+#               Tested with EKOS, don't know if it'll work with other imaging tools 
+# TODO:
+#      - Calibrate image prior to storing and stacking it (master dark/flat/bias)
+#
+############################################################################################################ 
 import os
 from astropy.io import fits
 import logging
@@ -57,10 +70,26 @@ def createTables():
     cur.execute("CREATE TABLE if not exists fitsHeader(thisUNID, parentUNID, keyword, value)")
     return
 
+def submitToLiveStack(fitsName,hdr):
+    # What is the livestack called?
+    liveStackName=stackFolder+"{0}-LiveStack.jpg".format(hdr["OBJECT"])
+    # Has a livestack already been started?
+    if (os.path.isfile(liveStackName))
+        # Stack this image with the current liveStack
+        exeStr="/usr/bin/siril-cli -s live.ssf -d {0}/Light".format(workingFolder)
+        os.system(exeStr)
+    else:
+        # New livestack, just create a JPG file of the first image
+        exeStr="convert -flatten {0} {1}".format(fitsName,livestackName)
+        os.system(exeStr)
+    return True
+
 # Variable Declarations
 picturesFolder="/home/gtulloch/Dropbox/Astronomy/00 Telescope Data"
 repoFolder="/home/gtulloch/Dropbox/Astronomy/00 Data Repository/"
 dbName = "/home/gtulloch/Dropbox/Astronomy/00 Data Repository/obsy.db"
+stackFolder="/var/www/html/"
+workingFolder="/home/gtulloch/Dropbox/Astronomy/00 Siril Work/"
 
 # Set up Database
 con = sqlite3.connect(dbName)
@@ -105,6 +134,8 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
                     print(moveInfo)
             else:
                 logging.warning("Warning: File not added to repo is "+str(os.path.join(root, file)))
+            if not (submitToLiveStack(repoFolder+newName,hdr)):
+                logging.warning("Warning: File not added to stack is "+newName)
         else:
             logging.warning("File not added to repo - no FRAME card - "+str(os.path.join(root, file)))
             

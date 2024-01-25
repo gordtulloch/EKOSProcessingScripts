@@ -1,0 +1,4 @@
+setext fits
+#register Main_
+#stack r_Main_ sum -nonorm
+stack Main_ sum -nonorm

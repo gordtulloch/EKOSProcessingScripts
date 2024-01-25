@@ -1,4 +1,14 @@
-# Script to fix object names that were not set properly by EKOS
+############################################################################################################
+#
+# Name        : fixFitsObject.py
+# Purpose     : Script to fix object names that were not set properly by EKOS
+# Author      : Gord Tulloch
+# Date        : January 25 2024
+# License     : GPL v3
+# Dependencies: None
+#
+############################################################################################################ 
+# # 
 import os
 from astropy.io import fits
 import logging
