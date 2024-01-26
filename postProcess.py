@@ -8,6 +8,8 @@
 # License     : GPL v3
 # Dependencies: Imagemagick and SIRIL needs to be install for live stacking
 #               Tested with EKOS, don't know if it'll work with other imaging tools 
+# Usage       : This script could be run after an image (single image) or after a sequence if live stacking  
+#               is also being run
 # TODO:
 #      - Calibrate image prior to storing and stacking it (master dark/flat/bias)
 #
@@ -19,8 +21,6 @@ import sqlite3
 import shutil
 import uuid
 from pathlib import Path
-from pysiril.siril   import *
-from pysiril.wrapper import *
 
 DEBUG=True
 
@@ -70,57 +70,10 @@ def createTables():
     cur.execute("CREATE TABLE if not exists fitsHeader(thisUNID, parentUNID, keyword, value)")
     return
 
-def submitToLiveStack(fitsName,hdr):
-    # Create working directories if not exist
-    Path(workingFolder).mkdir(parents=True, exist_ok=True)
-    Path(workingFolder+"Light").mkdir(parents=True, exist_ok=True)
-
-    # What is the livestack called? If first or we've changed object create a new one
-    liveStackName=stackFolder+"{0}-LiveStack.png".format(hdr["OBJECT"])
-
-    # Set up pySiril
-    app=Siril()
-    cmd=Wrapper(app)
-    cmd.set16bits()
-    cmd.setext('fits')
-    
-    # Has a livestack already been started?
-    if (os.path.isfile(liveStackName)):
-        # Move the new image into the working folder
-        shutil.copy(fitsName, workingFolder+"Light/Main_002.fits")      
-        # Stack this image with the current liveStack
-        try:
-            cmd.cd(workingFolder+"/Light")
-            cmd.stack("Main_",type='sum',output_norm=False)
-        except Exception as e :
-            print("\n**** ERROR *** " +  str(e) + "\n" )  
-        # Remove working files
-        os.system("rm {0}Light/Main_001.fits".format(workingFolder))
-        os.system("rm {0}Light/Main_002.fits".format(workingFolder))
-        os.system("rm {0}Light/*.seq".format(workingFolder))
-        os.system("mv {0}Light/Main_stacked.fits {0}Light/Main_001.fits".format(workingFolder))
-        os.system("rm {0}Light/r_Main*.fits".format(workingFolder))
-        # Move PNG to web server
-        os.system("/usr/bin/convert -flatten {0}Light/Main_stacked.fits {1}".format(workingFolder,liveStackName))
-    else:
-        # New livestack, put the first image in the working folder
-        shutil.copy(fitsName, workingFolder+"Light/Main_001.fits")
-        # Move any existing livestacks to a Previous folder
-        os.system("mv {0}*.png {0}Previous".format(stackFolder))
-        # Create a PNG file of the first image
-        print("Converting {0} to {1}\n".format(fitsName,liveStackName))
-        os.system("/usr/bin/convert -flatten {0} {1}".format(fitsName,liveStackName))
-        
-    app.Close()
-    del app
-    return True
-
 # Variable Declarations
 picturesFolder="/home/gtulloch/AstroPictures/"
 repoFolder="/home/gtulloch/AstroRepository/"
 dbName = "/home/gtulloch/AstroRepository/obsy.db"
-stackFolder="/var/www/html/LiveStack/"
-workingFolder="/home/gtulloch/SirilWork/"
 
 # Set up Database
 con = sqlite3.connect(dbName)
@@ -134,9 +87,10 @@ logging.basicConfig(filename='postProcess.log', filemode='w', format='%(name)s -
 for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
     for file in files:
         file_name, file_extension = os.path.splitext(os.path.join(root, file))
-        #if (file_extension !=".fits") or (file_extension !=".fit"):
-        #    continue
-        print(os.path.join(root, file))
+        # Ignore everything not a *fit* file
+        if (file_extension !=".fits") or (file_extension !=".fit"):
+            continue
+        
         hdul = fits.open(os.path.join(root, file))
         hdr = hdul[0].header
         if "FRAME" in hdr:
@@ -162,8 +116,6 @@ for root, dirs, files in os.walk(os.path.abspath(picturesFolder)):
                 moveInfo="Moving {0} to {1}\n".format(os.path.join(root, file),repoFolder+newName)
             else:
                 logging.warning("Warning: File not added to repo is "+str(os.path.join(root, file)))
-            if not (submitToLiveStack(repoFolder+newName,hdr)):
-                logging.warning("Warning: File not added to stack is "+newName)
         else:
             logging.warning("File not added to repo - no FRAME card - "+str(os.path.join(root, file)))
             
