@@ -100,15 +100,15 @@ def obsyOpen():
     url = 'http://10.0.0.101/30000/00'
     response = requests.get(url)
 
-    # Roof is open unpark scope
-    telescope_parkstatus=device_telescope.getSwitch("TELESCOPE_PARK")
-    while not(telescope_parkstatus):
-        time.sleep(0.5)
-        telescope_parkstatus=device_telescope.getSwitch("TELESCOPE_PARK")
+    # Run the schedule
+    # Create a session bus.
+    #import dbus
+    #bus = dbus.SessionBus()
 
-    telescope_parkstatus[0].s=PyIndi.ISS_OFF   # the "PARK" switch
-    telescope_parkstatus[1].s=PyIndi.ISS_ON  # the "UNPARKED" switch
-    indiclient.sendNewSwitch(telescope_parkstatus) # send this new value to the device
+    #remote_object = bus.get_object("org.kde.kstars", "/KStars/Ekos/Scheduler")
+    #iface = dbus.Interface(remote_object, 'org.kde.kstars.Ekos.Scheduler')
+    #iface.loadScheduler("/home/stellarmate/Pictures/daily.esl")
+
     return
 
 def obsyClose():
@@ -117,7 +117,6 @@ def obsyClose():
     while not(telescope_parkstatus):
         time.sleep(0.5)
         telescope_parkstatus=device_telescope.getSwitch("TELESCOPE_PARK")
-
     telescope_parkstatus[0].s=PyIndi.ISS_ON   # the "PARK" switch
     telescope_parkstatus[1].s=PyIndi.ISS_OFF  # the "UNPARKED" switch
     indiclient.sendNewSwitch(telescope_parkstatus) # send this new value to the device
@@ -194,6 +193,11 @@ def checkSun():
     else:
         return False
         
+############################################################################################################
+# Get rain indicator from RG-11
+def getRain():
+    return
+
 ############################################################################################################
 # Get local weather data from ADS-WS1
 def getWeather():

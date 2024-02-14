@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 ############################################################################################################
 #
 # Name        : MCP.py
@@ -28,10 +29,17 @@ import time
 import sys
 import threading
 import requests
+import gobject
+gobject.threads_init()
+
+from dbus import glib
+glib.init_threads()
+
+import os
 from pysolar.solar import *
 from keras.models import load_model  # TensorFlow is required for Keras to work
 from PIL import Image, ImageOps      # Install pillow instead of PIL
-import MCPFunctions
+from MCPFunctions import getRain, checkSun, mlCloudDetect, getWeather, obsyOpen, obsyClose
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -51,14 +59,14 @@ PENDING=5
 
 while runMCP:
 	# If it's raining or daytime, immediate shut down and wait 5 mins
-	if MCPFunctions.getRain() or MCPFunctions.checkSun():
+	if getRain() or checkSun():
 		obsyState = "Closed"
-		MCPFunctions.obsyClose()
+		obsyClose()
 		time.sleep(300)
 		continue
 
     # If weather looks unsuitable either stay closed or move to Close Pending if Open
-	if MCPFunctions.mlCloudDetect() or MCPFunctions.getWeather():
+	if mlCloudDetect() or getWeather():
 		if obsyState == "Closed":
 			continue
 		# If Open give it PENDING minutes to change
@@ -69,7 +77,7 @@ while runMCP:
 			pendingCount+=1
 		if pendingCount == PENDING:
 			obsyState="Closed"
-			MCPFunctions.obsyClose()
+			obsyClose()
 			pendingCount=0
 	else:
 		# Good weather so set to Open Pending or Open
@@ -80,7 +88,7 @@ while runMCP:
 			pendingCount=1
 		if pendingCount==PENDING: 
 			obsyState="Open"
-			MCPFunctions.obsyOpen()
+			obsyOpen()
 			pendingCount=0
     
 	time.sleep(60)
