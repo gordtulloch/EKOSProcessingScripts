@@ -1,6 +1,32 @@
 ############################################################################################################
 # FUNCTIONS
 ############################################################################################################
+import PyIndi
+import sys
+import astropy.coordinates as coord
+from astropy.time import Time
+import astropy.units as u
+import astropy.io.fits as pyfits
+import warnings
+from datetime import datetime
+import pytz
+import os.path
+import codecs
+import serial
+import PyIndi
+import numpy as np
+import skimage.io
+import time
+import threading
+import requests
+import dbus
+import os
+from pysolar.solar import *
+from keras.models import load_model  # TensorFlow is required for Keras to work
+from PIL import Image, ImageOps      # Install pillow instead of PIL
+
+indiServer		= 	'127.0.0.1'
+indiPort		= 	7624
 
 ############################################################################################################
 # INDI Client Definition
@@ -38,7 +64,7 @@ class IndiClient(PyIndi.BaseClient):
 #############################################################################################################
 # connect the server
 indiclient=IndiClient()
-indiclient.setServer("10.0.0.173",7624)
+indiclient.setServer(indiServer,indiPort)
 
 if (not(indiclient.connectServer())):
     print("No indiserver running on "+indiclient.getHost()+":"+str(indiclient.getPort()))
@@ -101,17 +127,15 @@ def obsyOpen():
     response = requests.get(url)
 
     # Run the schedule
-    # Create a session bus.
-    #import dbus
-    #bus = dbus.SessionBus()
-
-    #remote_object = bus.get_object("org.kde.kstars", "/KStars/Ekos/Scheduler")
-    #iface = dbus.Interface(remote_object, 'org.kde.kstars.Ekos.Scheduler')
-    #iface.loadScheduler("/home/stellarmate/Pictures/daily.esl")
+    ekos_dbus.start_scheduler()
 
     return
 
 def obsyClose():
+    # Stop the scheduler if it's running
+    if ekos_dbus.is_scheduler_running():
+        ekos_dbus.stop_scheduler()
+    
     # Park the scope
     telescope_parkstatus=device_telescope.getSwitch("TELESCOPE_PARK")
     while not(telescope_parkstatus):
@@ -307,3 +331,114 @@ def getWeather():
     else:
         print("No data")
     return
+
+############################################################################################################
+# EkosDbus - functions to control the Ekos instance running on the local machine
+class EkosDbus():
+	def __init__(self):
+		# user login session
+		self.session_bus = dbus.SessionBus()
+		self.start_ekos_proxy = None
+		self.start_ekos_iface = None
+		self.ekos_proxy = None
+		self.ekos_iface = None
+		self.scheduler_proxy = None
+		self.scheduler_iface = None
+		self.is_ekos_running = None
+
+	def setup_start_ekos_iface(self):
+		try:
+			# proxy object
+			self.start_ekos_proxy = self.session_bus.get_object("org.kde.kstars",  # bus name
+																"/kstars/MainWindow_1/actions/ekos"  # object path
+																)
+			# interface object
+			self.start_ekos_iface = dbus.Interface(self.start_ekos_proxy, 'org.qtproject.Qt.QAction')
+		except dbus.DBusException as dbe:
+			print(dbe)
+			sys.exit(1)
+
+	def setup_ekos_iface(self, verbose=True):
+		# if self.start_ekos_iface is None:
+		#     self.setup_start_ekos_iface()
+		try:
+			self.ekos_proxy = self.session_bus.get_object("org.kde.kstars",
+														  "/KStars/Ekos"
+														  )
+			# ekos interface
+			self.ekos_iface = dbus.Interface(self.ekos_proxy, 'org.kde.kstars.Ekos')
+		except dbus.DBusException as dbe:
+			if verbose:
+				print(dbe)
+			sys.exit(1)
+
+	def setup_scheduler_iface(self, verbose=True):
+		try:
+			# https://api.kde.org/extragear-api/edu-apidocs/kstars/html/classEkos_1_1Scheduler.html
+			self.scheduler_proxy = self.session_bus.get_object("org.kde.kstars",
+															   "/KStars/Ekos/Scheduler"
+															   )
+			self.scheduler_iface = dbus.Interface(self.scheduler_proxy, "org.kde.kstars.Ekos.Scheduler")
+		except dbus.DBusException as dbe:
+			if verbose:
+				print(dbe)
+			sys.exit(1)
+
+	def start_ekos(self):
+		print("Start Ekos")
+		if self.start_ekos_iface is None:
+			self.setup_start_ekos_iface()
+		self.start_ekos_iface.trigger()
+
+	def stop_ekos(self):
+		print("Stop Ekos")
+		if self.ekos_iface is None:
+			self.setup_ekos_iface()
+		self.ekos_iface.stop()
+
+	# is_ekos_running does not work
+	def is_ekos_running(self):
+		if self.ekos_iface is None:
+			self.setup_ekos_iface(verbose=False)
+		sys.exit(0)
+
+	def load_and_start_profile(self, profile):
+		print("Load {} profile".format(profile))
+		if self.ekos_iface is None:
+			self.setup_ekos_iface()
+		self.ekos_iface.setProfile(profile)
+		print("Start {} profile".format(profile))
+		self.ekos_iface.start()
+		self.ekos_iface.connectDevices()
+		print("TODO Waiting for INDI devices...")
+		time.sleep(5)
+
+	def load_schedule(self, schedule):
+		print("Load {} schedule".format(schedule))
+		if self.scheduler_iface is None:
+			self.setup_scheduler_iface()
+		self.scheduler_iface.loadScheduler(schedule)
+
+	def start_scheduler(self):
+		print("Start scheduler")
+		if self.scheduler_iface is None:
+			self.setup_scheduler_iface()
+		self.scheduler_iface.start()
+
+	def stop_scheduler(self):
+		print("Stop scheduler")
+		if self.scheduler_iface is None:
+			self.setup_scheduler_iface()
+		self.scheduler_iface.stop()
+
+	def reset_scheduler(self):
+		print("Reset all jobs in the scheduler")
+		if self.scheduler_iface is None:
+			self.setup_scheduler_iface()
+		self.scheduler_iface.resetAllJobs()
+
+	# is_scheduler_running does not work
+	def is_scheduler_running(self):
+		if self.scheduler_iface is None:
+			self.setup_scheduler_iface(verbose=False)
+		sys.exit(0)

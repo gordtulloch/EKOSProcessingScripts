@@ -9,54 +9,51 @@
 # License     : GPL v3
 # Dependencies: Tested with EKOS, don't know if it'll work with other imaging tools 
 # Usage       : Run as a service
-# TODO:
 #
 ############################################################################################################
-import astropy.coordinates as coord
-from astropy.time import Time
-import astropy.units as u
-import astropy.io.fits as pyfits
-import warnings
-from datetime import datetime
-import pytz
-import os.path
-import codecs
-import serial
-import PyIndi
-import numpy as np
-import skimage.io
-import time
-import sys
-import threading
-import requests
-import gobject
-gobject.threads_init()
 
-from dbus import glib
-glib.init_threads()
+import logging
+from MCPFunctions import getRain, checkSun, mlCloudDetect, getWeather, obsyOpen, obsyClose, ekos_dbus
 
-import os
-from pysolar.solar import *
-from keras.models import load_model  # TensorFlow is required for Keras to work
-from PIL import Image, ImageOps      # Install pillow instead of PIL
-from MCPFunctions import getRain, checkSun, mlCloudDetect, getWeather, obsyOpen, obsyClose
+############################################################################################################
+# CONFIGURATION AND SETUP
+############################################################################################################
+debug			=	True
+homedir			=	"/home/gtulloch/Projects/EKOSProcessingScripts/"
+weatherUSBPort 	= 	"/dev/ttyUSB0"
+rainUSBPort 	= 	"/dev/ttyUSB1"
+long			=	-97.1385
+lat				=	 49.8954
+runMCP			=	True
+maxPending		=	5
+ekosProfile		=	"NTT8"
+dbName			= 	homedir+"obsy.db"
+
 
 # Suppress warnings
-warnings.filterwarnings("ignore")
+#warnings.filterwarnings("ignore")
+
+# Set up Database
+con = sqlite3.connect(dbName)
+cur = con.cursor()
+
+# Set up logging
+logger = logging.getLogger('MCP.py')
+logger.basicConfig(filename='MCP.log', filemode='w', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger.info('MCP starting')
+
+# Ensure Ekos is running or exit
+ekosStartCounter=0
+while not ekos_dbus.is_ekos_running():
+	ekos_dbus.start_ekos()
+	time.sleep(5)
+	if ekosStartCounter > 5:
+		logger.error('Unable to start Ekos')
+		exit(1)
 
 ############################################################################################################
-# CONFIGURATION 
+#                                    M  A  I  N  L  I  N  E 
 ############################################################################################################
-debug=True
-homedir="/home/gtulloch/Projects/EKOSProcessingScripts"
-weatherUSBPort 	= "/dev/ttyUSB0"
-rainUSBPort 	= "/dev/ttyUSB1"
-long=-97.1385
-lat=49.8954
-runMCP=True
-obsyStates=["Open","Open Pending","Closed","Close Pending","SafeMode"]
-PENDING=5
-
 while runMCP:
 	# If it's raining or daytime, immediate shut down and wait 5 mins
 	if getRain() or checkSun():
@@ -75,7 +72,7 @@ while runMCP:
 			pendingCount=1
 		if obsyState == "Close Pending":
 			pendingCount+=1
-		if pendingCount == PENDING:
+		if pendingCount == maxPending:
 			obsyState="Closed"
 			obsyClose()
 			pendingCount=0
@@ -86,12 +83,20 @@ while runMCP:
 			pendingCount=1
 		if obsyState == "Open Pending":
 			pendingCount=1
-		if pendingCount==PENDING: 
+		if pendingCount==maxPending: 
 			obsyState="Open"
 			obsyOpen()
 			pendingCount=0
-    
+   
+	logger.info('Obsy state is '+obsyState)
 	time.sleep(60)
 
+############################################################################################################
+# SHUTDOWN
+############################################################################################################
+# Stop Ekos on the current computer
+ekos_dbus.stop_ekos()
 
-
+logger.info('Obsy closed')
+cur.close()
+con.close()
