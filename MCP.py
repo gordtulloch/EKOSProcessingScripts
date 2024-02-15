@@ -3,16 +3,16 @@
 ############################################################################################################
 #
 # Name        : MCP.py
-# Purpose     : The Master Control Program (nods to TRON) coordinates all activities for OBSY
+# Purpose     : The Master Control Program (nods to TRON) coordinates all recurring activities for OBSY
 # Author      : Gord Tulloch
 # Date        : February 14 2024
 # License     : GPL v3
-# Dependencies: Tested with EKOS, don't know if it'll work with other imaging tools 
+# Dependencies: Requires KStars/EKOS, DBUS, and an INDI Server local or remote
 # Usage       : Run as a service
 #
 ############################################################################################################
 
-import logging
+# A whole bunch of setup and function definition happens here
 from MCPFunctions import getRain, checkSun, mlCloudDetect, getWeather, obsyOpen, obsyClose, ekos_dbus
 
 ############################################################################################################
@@ -20,24 +20,22 @@ from MCPFunctions import getRain, checkSun, mlCloudDetect, getWeather, obsyOpen,
 ############################################################################################################
 debug			=	True
 homedir			=	"/home/gtulloch/Projects/EKOSProcessingScripts/"
-weatherUSBPort 	= 	"/dev/ttyUSB0"
-rainUSBPort 	= 	"/dev/ttyUSB1"
 long			=	-97.1385
 lat				=	 49.8954
 runMCP			=	True
 maxPending		=	5
 ekosProfile		=	"NTT8"
-dbName			= 	homedir+"obsy.db"
-
 
 # Suppress warnings
 #warnings.filterwarnings("ignore")
 
-# Set up Database
+# Set up database
+dbName = homedir+"obsy.db"
 con = sqlite3.connect(dbName)
 cur = con.cursor()
 
 # Set up logging
+import logging
 logger = logging.getLogger('MCP.py')
 logger.basicConfig(filename='MCP.log', filemode='w', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger.info('MCP starting')
@@ -97,6 +95,6 @@ while runMCP:
 # Stop Ekos on the current computer
 ekos_dbus.stop_ekos()
 
-logger.info('Obsy closed')
+logger.info('MCP execution terminated')
 cur.close()
 con.close()
